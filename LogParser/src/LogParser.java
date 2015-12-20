@@ -10,6 +10,8 @@ import java.util.HashSet;
 public class LogParser {
 
 	static final int HISTOGRAMDEPTH = 30;
+	static final int ERROR = 1;
+	static final int SUCCESS = 0;
 	static final String HOURS[] = {
 		"00", "01", "02", "03", "04", "05",
 		"06", "07", "08", "09", "10", "11",
@@ -18,21 +20,30 @@ public class LogParser {
 		};
 	
 	public static void main(String[] args) {
-		long start = System.currentTimeMillis();
+		long startTime = System.currentTimeMillis();
 		FileReader fr = null;
+		if (args.length < 2) exit(startTime, ERROR, "Invalid parameters. Type -h for help");
 		if (args[0].equalsIgnoreCase("-h")) {
-			showHelp();
-			return; // needed?
+			exit(startTime, ERROR, "Usage: assignment.jar 'file name' 'elements count'.");
 		} else {
 // Initialization start.
 			try {
 				fr = new FileReader(args[0]);
-			} catch (FileNotFoundException nsfe) {return;}
+			} catch (FileNotFoundException nsfe) {
+				exit(startTime, ERROR, nsfe.toString());
+			}
 		}
 		int numberOfItems = 0;
 		try {
 			numberOfItems = Integer.parseInt(args[1]);
-		} catch (NumberFormatException nfe) {}
+			if(numberOfItems < 0) {
+				fr.close();
+				throw new NumberFormatException("Invalid parameters: n " + '"' +
+						numberOfItems + '"' + " must be greater than or equal to zero.");
+			}
+		} catch (NumberFormatException | IOException nfe) {
+			exit(startTime, ERROR, nfe.toString());
+		}
 		BufferedReader br = new BufferedReader(fr);
 		ArrayList<Query> qList = new ArrayList<Query>();
 		ArrayList<Resource> rList = new ArrayList<Resource>();
@@ -44,7 +55,7 @@ public class LogParser {
 			String line = null;
 			while ((line = br.readLine()) != null) {
 				String[] l = line.split("\\s+");
-				int key = Integer.parseInt(l[1].substring(0,2));
+				int key = Integer.parseInt(l[1].substring(0, 2));
 				int value = frequency.containsKey(key) ? frequency.get(key) + 1 : 1;
 				frequency.put(key, value);
 				if (line.contains("/")) {
@@ -57,7 +68,9 @@ public class LogParser {
 					resources.add(r.resoourceName);
 				}
 			} br.close();
-		} catch (IOException e) {return;}
+		} catch (IOException ioe) {
+			exit(startTime, ERROR, ioe.toString());
+		}
 // Counting and printing resources (Functional requirement #1).
 		ArrayList<Average> averages = new ArrayList<Average>();
 		for (String s : queries) {
@@ -88,10 +101,13 @@ public class LogParser {
 				return o2.average - o1.average;
 			}
 		});
+		numberOfItems = (numberOfItems < averages.size()) ? numberOfItems : averages.size();
+		String format = "%3s %8s %s%n";
+		System.out.printf(format, "#", "Time(ms)", "Name");
 		for (int i = 0; i < numberOfItems; i++)
-			System.out.println(averages.get(i));
+			System.out.printf(format, i + 1, averages.get(i).average, averages.get(i).name);
 		System.out.println();
-// Drawing histogram.
+// Drawing histogram (Functional requirement #2).
 		int max = 0;
 		for (int key = 0; key < 24; key++) {
 			int current = frequency.containsKey(key) ? frequency.get(key) : 0;
@@ -99,26 +115,25 @@ public class LogParser {
 			frequency.put(key, current);
 		}
 		int cost = max / HISTOGRAMDEPTH;
+		format = "%4s %s %n";
+		System.out.printf(format, "Hour", "Call requency (min..............................max)");
 		for (int i = 0; i < 24; i++) {
-			System.out.println(HOURS[i] + " " + get60(frequency.get(i) / cost));
+			System.out.printf(format, HOURS[i], draw(frequency.get(i) / cost));
 		}
-		System.out.println();
-		System.err.println("Runtime: " + (System.currentTimeMillis() - start) + " ms.");
+		exit(startTime, SUCCESS, "");
 	}
 	
-	private static String get60(int i) {
+	private static String draw(int i) {
 		String s = "";
 		while (i-- > 0)
-			s += "*";
+			s += '|';
 		return s;
 	}
 	
-	private static void showHelp() {
-		System.out.println(
-				"Usage:\n" +
-				"First argument must be a file name. " +
-				"Second argument must be a number of resources to print."
-				);
+	private static void exit(long startTime, int exitCode, String text) {
+		System.err.println(text);
+		System.err.println("Runtime: " + (System.currentTimeMillis() - startTime) + " ms.");
+		System.exit(exitCode);
 	}
 }
 
