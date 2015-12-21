@@ -1,3 +1,7 @@
+/**
+ * Stores process data.
+ * @author <a href='http://www.facebook.com/InQuirerDj'>Habib Mohammad</a>
+ */
 class Line {
 	
 	String date;
@@ -6,7 +10,7 @@ class Line {
 	String userContext;
 	String[] mid = new String[2];
 	int duration;
-
+	
 	public Line(String[] line) {
 		date = line[0];
 		timestamp = line[1];
